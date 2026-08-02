@@ -1,0 +1,1 @@
+# Google AdSense 승인 후 Google에서 제공하는 ads.txt 한 줄로 교체하세요.

@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>계산집 | 필요한 계산, 계산집에서</title>
+  <meta name="description" content="평수, 나이, 날짜, 환율, 단위, BMI, 연봉, 퇴직금을 쉽고 빠르게 계산하는 생활 계산 플랫폼 계산집입니다." />
+  <meta name="theme-color" content="#f6f1e8" />
+  <meta property="og:title" content="계산집" />
+  <meta property="og:description" content="필요한 계산, 계산집에서." />
+  <meta property="og:type" content="website" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <button class="brand" data-go-home aria-label="계산집 홈">
+      <span class="brand-mark">⌂</span>
+      <span>
+        <strong>계산집</strong>
+        <small>필요한 계산, 계산집에서.</small>
+      </span>
+    </button>
+  </header>
+
+  <main>
+    <section id="home-view" class="view active" aria-labelledby="home-title">
+      <div class="hero">
+        <p class="eyebrow">생활 계산 플랫폼</p>
+        <h1 id="home-title">필요한 계산,<br><span>계산집에서.</span></h1>
+        <p>복잡한 설명 없이, 필요한 값만 넣고 바로 확인하세요.</p>
+      </div>
+
+      <section class="category">
+        <div class="section-title">
+          <h2>생활 계산</h2>
+          <span>6개</span>
+        </div>
+        <div class="card-grid">
+          <button class="calc-card" data-open="area">
+            <span class="icon">🏠</span>
+            <span><strong>84㎡는 몇 평?</strong><small>평수 계산기</small></span>
+            <b>›</b>
+          </button>
+          <button class="calc-card" data-open="age">
+            <span class="icon">🎂</span>
+            <span><strong>나는 지금 몇 살?</strong><small>만 나이 · 한국식 나이</small></span>
+            <b>›</b>
+          </button>
+          <button class="calc-card" data-open="date">
+            <span class="icon">📅</span>
+            <span><strong>그날까지 며칠?</strong><small>D-Day · 날짜 더하기</small></span>
+            <b>›</b>
+          </button>
+          <button class="calc-card" data-open="exchange">
+            <span class="icon">💱</span>
+            <span><strong>10만 엔은 얼마?</strong><small>실시간 환율 계산기</small></span>
+            <b>›</b>
+          </button>
+          <button class="calc-card" data-open="unit">
+            <span class="icon">📏</span>
+            <span><strong>인치를 센티미터로</strong><small>SI · US 단위 변환</small></span>
+            <b>›</b>
+          </button>
+          <button class="calc-card" data-open="bmi">
+            <span class="icon">⚖️</span>
+            <span><strong>내 BMI는 얼마?</strong><small>체질량지수 계산기</small></span>
+            <b>›</b>
+          </button>
+        </div>
+      </section>
+
+      <div class="ad-placeholder" aria-label="광고 영역">
+        <span>ADVERTISEMENT</span>
+        <p>AdSense 승인 후 광고가 표시될 자리입니다.</p>
+      </div>
+
+      <section class="category">
+        <div class="section-title">
+          <h2>금융 계산</h2>
+          <span>2개</span>
+        </div>
+        <div class="card-grid">
+          <button class="calc-card" data-open="salary">
+            <span class="icon">💵</span>
+            <span><strong>연봉, 월급으로 얼마?</strong><small>실수령액 · 상승률</small></span>
+            <b>›</b>
+          </button>
+          <button class="calc-card" data-open="retirement">
+            <span class="icon">💼</span>
+            <span><strong>퇴직금 얼마나 받을까?</strong><small>예상 퇴직금 계산기</small></span>
+            <b>›</b>
+          </button>
+        </div>
+      </section>
+
+      <section class="about-box">
+        <h2>계산집은 이렇게 만들었습니다</h2>
+        <p>회원가입 없이 바로 사용하고, 입력한 값은 서버에 저장하지 않습니다. 계산 결과는 참고용이며 실제 금액과 차이가 날 수 있습니다.</p>
+      </section>
+    </section>
+
+    <section id="calculator-view" class="view" aria-live="polite">
+      <button class="back-button" data-go-home>← 계산기 목록</button>
+      <article class="calculator-shell">
+        <div id="calculator-content"></div>
+      </article>
+      <div class="ad-placeholder compact">
+        <span>ADVERTISEMENT</span>
+        <p>계산 결과 아래 광고 영역</p>
+      </div>
+      <section class="related">
+        <h2>다른 계산도 필요하신가요?</h2>
+        <div id="related-list" class="related-list"></div>
+      </section>
+    </section>
+
+    <section id="info-view" class="view">
+      <button class="back-button" data-go-home>← 홈으로</button>
+      <article class="legal-card" id="info-content"></article>
+    </section>
+  </main>
+
+  <footer>
+    <div>
+      <strong>계산집</strong>
+      <p>필요한 계산, 계산집에서.</p>
+    </div>
+    <nav>
+      <button data-info="privacy">개인정보처리방침</button>
+      <button data-info="terms">이용약관</button>
+      <button data-info="contact">문의</button>
+    </nav>
+    <small>© 2026 계산집. All rights reserved.</small>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
