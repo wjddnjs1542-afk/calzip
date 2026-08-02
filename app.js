@@ -60,6 +60,18 @@ function getDateParts(prefix) {
   return date.getFullYear()===y && date.getMonth()===m-1 && date.getDate()===d ? date : null;
 }
 function dateText(date){ return `${date.getFullYear()}년 ${date.getMonth()+1}월 ${date.getDate()}일`; }
+function calendarDiff(start, end) {
+  let years=end.getFullYear()-start.getFullYear();
+  let months=end.getMonth()-start.getMonth();
+  let days=end.getDate()-start.getDate();
+  if(days<0){
+    const prevMonthLastDay=new Date(end.getFullYear(), end.getMonth(), 0).getDate();
+    days += prevMonthLastDay;
+    months--;
+  }
+  if(months<0){ months+=12; years--; }
+  return {years:Math.max(0,years), months:Math.max(0,months), days:Math.max(0,days)};
+}
 
 function showView(id) {
   $$(".view").forEach(v=>v.classList.remove("active"));
@@ -165,12 +177,20 @@ const renderers = {
   </div>
   <p class="note">값이나 단위를 바꾸면 계산 버튼 없이 결과가 바로 갱신됩니다.</p>`),
  bmi: ()=>shell("bmi", `
-  <div class="form-grid two">
+  <div class="field">
+    <label>성별</label>
+    <div class="choice-row" role="radiogroup" aria-label="성별">
+      <label class="choice-chip"><input type="radio" name="bmi-sex" value="male" checked><span>남성</span></label>
+      <label class="choice-chip"><input type="radio" name="bmi-sex" value="female"><span>여성</span></label>
+    </div>
+    <p class="field-help">성인 BMI 계산식과 판정 범위는 남녀가 같습니다. 성별은 복부비만 허리둘레 기준 안내에 사용합니다.</p>
+  </div>
+  <div class="form-grid two" style="margin-top:15px">
     <div class="field"><label>키</label><div class="input-wrap"><input id="height" type="number" inputmode="decimal" placeholder="예: 175"><em>cm</em></div></div>
     <div class="field"><label>몸무게</label><div class="input-wrap"><input id="weight" type="number" inputmode="decimal" placeholder="예: 75"><em>kg</em></div></div>
   </div>
   <button class="primary-button" id="bmi-calc">BMI 계산하기</button><div class="result" id="bmi-result"></div>
-  <p class="note">BMI는 성인의 체중 상태를 간단히 살펴보는 지표이며 근육량, 체지방 분포, 질환 여부를 모두 반영하지는 못합니다.</p>`),
+  <p class="note">대한비만학회 성인 기준을 적용합니다. 저체중 18.5 미만, 정상 18.5~22.9, 비만 전 단계 23.0~24.9, 1단계 비만 25.0~29.9, 2단계 비만 30.0~34.9, 3단계 비만 35.0 이상입니다. 만 19세 미만, 임신부, 근육량이 매우 많은 사람은 별도 평가가 필요합니다.</p>`),
  salary: ()=>shell("salary", `
   <div class="segmented"><button class="active" data-salary-mode="takehome">월 실수령액</button><button data-salary-mode="raise">연봉 상승 계산</button></div>
 
@@ -336,7 +356,7 @@ const binders = {
       showResult("date-result", `<span class="result-label">${name}</span><strong class="big">${diff===0?"D-Day":diff>0?"D-"+diff:"D+"+Math.abs(diff)}</strong>
         <div class="result-grid"><div class="result-item"><small>두 날짜 차이</small><strong>${Math.abs(diff).toLocaleString()}일</strong></div>
         <div class="result-item"><small>경과 주수</small><strong>${(Math.abs(diff)/7).toFixed(1)}주</strong></div>
-        <div class="result-item"><small>해당 주년</small><strong>${years>0?years+"주년":"1주년 전"}</strong></div>
+        <div class="result-item"><small>해당 주년·년차</small><strong>${years>0?years+"주년 ("+(years+1)+"년차)":"1주년 전 (1년차)"}</strong></div>
         <div class="result-item"><small>다음 주년까지</small><strong>${toNext}일</strong></div></div>`);
     } else {
       const b=getDateParts("base-date"), n=parseInt($("#offset-days").value);
@@ -370,7 +390,96 @@ const binders = {
   $("#unit-swap").onclick=()=>{const a=$("#unit-from").value;$("#unit-from").value=$("#unit-to").value;$("#unit-to").value=a;convert();};
  },
  bmi() {
-  $("#bmi-calc").onclick=()=>{const h=parseFloat($("#height").value),w=parseFloat($("#weight").value);if(!(h>0&&w>0))return alert("키와 몸무게를 입력해주세요.");const bmi=w/((h/100)**2);let cls,guide;if(bmi<18.5){cls="저체중";guide=["규칙적인 식사와 충분한 단백질 섭취를 살펴보세요.","원치 않는 체중 감소가 이어지면 의료진과 상담해보세요."];}else if(bmi<23){cls="정상 범위";guide=["현재 생활습관을 꾸준히 유지해보세요.","주 150분 정도의 중강도 신체활동을 목표로 해보세요."];}else if(bmi<25){cls="과체중 전단계";guide=["음료·간식의 당류와 야식 빈도를 먼저 점검해보세요.","걷기와 근력운동을 무리 없이 꾸준히 시작해보세요."];}else if(bmi<30){cls="1단계 비만";guide=["체중의 5~10% 감량도 건강상 이점이 있을 수 있습니다.","식사·활동·수면을 조정하는 생활습관 관리가 우선입니다.","고혈압·당뇨병·이상지질혈증 등 동반질환이 있거나 반복적인 감량 실패가 있다면 의료진이 처방치료 필요성을 검토할 수 있습니다."];}else{cls="2단계 이상 비만";guide=["먼저 식사·활동·수면을 포함한 생활습관을 현실적으로 조정하는 것이 체중관리의 기본입니다.","이 범위에서는 의료전문가가 동반질환과 과거 감량 시도 등을 평가해 비만치료제 사용 가능성을 검토할 수 있습니다.","위고비·마운자로 등 약물은 호르몬제가 아니라 식욕과 대사에 관여하는 처방 비만치료제이며, 개인 판단으로 시작하지 말고 반드시 의료진과 상담해야 합니다."];}showResult("bmi-result",`<span class="result-label">체질량지수</span><strong class="big">${bmi.toFixed(1)} · ${cls}</strong><div class="health-guide"><h3>생활관리 안내</h3><ul>${guide.map(x=>`<li>${x}</li>`).join("")}</ul></div>`);};
+  $("#bmi-calc").onclick=()=>{
+    const h=parseFloat($("#height").value), w=parseFloat($("#weight").value);
+    const sex=$('input[name="bmi-sex"]:checked')?.value || "male";
+    if(!(h>0&&w>0)) return alert("키와 몸무게를 입력해주세요.");
+    if(h<100 || h>230 || w<20 || w>350) return alert("키와 몸무게 입력값을 다시 확인해주세요.");
+
+    const meters=h/100;
+    const bmi=w/(meters**2);
+    const normalMin=18.5*(meters**2);
+    const normalMax=22.9*(meters**2);
+    const obesityStart=25*(meters**2);
+    const waistRef=sex==="male" ? "90cm" : "85cm";
+
+    let cls, risk, guide, treatment;
+    if(bmi<18.5){
+      cls="저체중";
+      risk="영양 상태와 원치 않는 체중 감소 여부를 함께 살펴보는 것이 좋습니다.";
+      guide=[
+        "규칙적인 식사와 충분한 단백질·에너지 섭취를 점검해보세요.",
+        "최근 체중이 의도하지 않게 줄었거나 피로·소화불량 등이 지속되면 의료진과 상담해보세요."
+      ];
+      treatment="체중 감량 치료 대상이 아닙니다.";
+    }else if(bmi<23){
+      cls="정상";
+      risk="한국인 성인 정상 범위입니다.";
+      guide=[
+        "현재의 균형 잡힌 식사와 규칙적인 신체활동을 유지해보세요.",
+        "BMI가 정상이더라도 허리둘레와 혈압·혈당·지질 수치를 함께 확인하면 좋습니다."
+      ];
+      treatment="약물치료보다 현재 건강습관을 유지하는 것이 중요합니다.";
+    }else if(bmi<25){
+      cls="비만 전 단계";
+      risk="체중 관련 질환 위험이 증가하기 시작하는 구간입니다.";
+      guide=[
+        "음료·간식·야식의 빈도와 하루 활동량부터 점검해보세요.",
+        "주 150분 정도의 중강도 유산소 활동과 주 2회 근력운동을 목표로 해보세요."
+      ];
+      treatment="일반적으로 생활습관 개선이 우선이며, 동반질환이 있다면 의료진 상담을 고려할 수 있습니다.";
+    }else if(bmi<30){
+      cls="1단계 비만";
+      risk="한국인 성인 비만 기준에 해당합니다.";
+      guide=[
+        "초기 목표로 현재 체중의 5~10%를 서서히 감량하는 방법을 고려해보세요.",
+        "식사·운동·수면·스트레스를 함께 관리하는 것이 가장 기본적인 치료입니다."
+      ];
+      treatment="생활습관 치료만으로 충분한 감량이 어렵거나 고혈압·당뇨병·이상지질혈증 등 동반질환이 있다면, 의료전문가가 처방 비만치료제 사용 가능성을 평가할 수 있습니다.";
+    }else if(bmi<35){
+      cls="2단계 비만";
+      risk="비만 관련 동반질환 위험이 높은 구간입니다.";
+      guide=[
+        "무리한 단기 감량보다 식사·활동·수면을 포함한 지속 가능한 계획을 세우는 것이 중요합니다.",
+        "혈압·혈당·지질·지방간·수면무호흡증 등 동반질환 평가를 권합니다."
+      ];
+      treatment="의료전문가 상담을 통해 생활습관 치료와 함께 위고비·마운자로 등 처방 비만치료제의 적합성을 검토할 수 있는 수준입니다. 이 약들은 일반적인 의미의 호르몬제가 아니라 식욕·대사 경로에 작용하는 처방약이며, 반드시 진료 후 사용해야 합니다.";
+    }else{
+      cls="3단계 비만";
+      risk="고도비만 범위로, 전문적인 평가와 치료 계획이 특히 중요합니다.";
+      guide=[
+        "혼자 무리하게 감량하기보다 의료진과 안전하고 지속 가능한 관리계획을 세우세요.",
+        "혈압·혈당·지질·간기능·수면무호흡증·관절 문제 등을 함께 평가하는 것이 좋습니다."
+      ];
+      treatment="의료전문가가 처방 비만치료제와 비만대사수술을 포함한 치료 선택지를 종합적으로 검토할 수 있습니다. 생활습관 관리는 모든 치료의 기본이며, 약물이나 수술은 개인별 진료를 거쳐 결정해야 합니다.";
+    }
+
+    let weightAction="";
+    if(w>normalMax) weightAction=`정상 상한까지 약 ${(w-normalMax).toFixed(1)}kg 감량`;
+    else if(w<normalMin) weightAction=`정상 하한까지 약 ${(normalMin-w).toFixed(1)}kg 증량`;
+    else weightAction="현재 정상체중 범위";
+
+    showResult("bmi-result",`
+      <span class="result-label">한국인 성인 BMI 기준</span>
+      <strong class="big">${bmi.toFixed(1)} · ${cls}</strong>
+      <p class="result-summary">${risk}</p>
+      <div class="result-grid">
+        <div class="result-item"><small>현재 체중</small><strong>${number(w)}kg</strong></div>
+        <div class="result-item"><small>키 기준 정상체중</small><strong>${normalMin.toFixed(1)}~${normalMax.toFixed(1)}kg</strong></div>
+        <div class="result-item"><small>체중 참고</small><strong>${weightAction}</strong></div>
+        <div class="result-item"><small>복부비만 허리둘레 기준</small><strong>${sex==="male"?"남성":"여성"} ${waistRef} 이상</strong></div>
+      </div>
+      <div class="health-guide">
+        <h3>생활관리 안내</h3>
+        <ul>${guide.map(x=>`<li>${x}</li>`).join("")}</ul>
+      </div>
+      <div class="medical-guide">
+        <h3>전문가 치료 안내</h3>
+        <p>${treatment}</p>
+      </div>
+      <p class="result-disclaimer">BMI만으로 약물치료 여부를 결정할 수 없습니다. 나이, 허리둘레, 동반질환, 복용약, 임신 가능성, 이전 체중관리 경험 등을 의료진이 함께 평가해야 합니다.</p>
+    `);
+  };
  },
  salary() {
   bindMoneyInputs();
@@ -460,7 +569,20 @@ const binders = {
  },
  retirement() {
   bindDateParts("join-date"); bindDateParts("leave-date"); bindMoneyInputs();
-  $("#retire-calc").onclick=()=>{const start=getDateParts("join-date"),end=getDateParts("leave-date"),p=parseMoney($("#three-month-pay").value);if(!start||!end||!(p>0))return alert("입사일, 퇴사일, 최근 3개월 임금을 입력해주세요.");const days=Math.floor((end-start)/86400000)+1;if(days<365)return alert("근속기간이 1년 미만입니다. 일반적인 법정 퇴직금 대상 여부를 별도로 확인해주세요.");const avgDaily=p/90;const result=avgDaily*30*(days/365);showResult("retire-result",`<span class="result-label">예상 퇴직금</span><strong class="big">${money(result)}</strong><div class="result-grid"><div class="result-item"><small>근속일수</small><strong>${days.toLocaleString()}일</strong></div><div class="result-item"><small>1일 평균임금(간이)</small><strong>${money(avgDaily)}</strong></div></div>`);};
+  $("#retire-calc").onclick=()=>{const start=getDateParts("join-date"),end=getDateParts("leave-date"),p=parseMoney($("#three-month-pay").value);if(!start||!end||!(p>0))return alert("입사일, 퇴사일, 최근 3개월 임금을 입력해주세요.");const days=Math.floor((end-start)/86400000)+1;if(days<365)return alert("근속기간이 1년 미만입니다. 일반적인 법정 퇴직금 대상 여부를 별도로 확인해주세요.");const avgDaily=p/90;
+    const result=avgDaily*30*(days/365);
+    const tenure=calendarDiff(start,end);
+    showResult("retire-result",`
+      <span class="result-label">예상 퇴직금</span>
+      <strong class="big">${money(result)}</strong>
+      <div class="result-grid">
+        <div class="result-item"><small>입사일</small><strong>${dateText(start)}</strong></div>
+        <div class="result-item"><small>퇴사 예정일</small><strong>${dateText(end)}</strong></div>
+        <div class="result-item"><small>근속기간</small><strong>${tenure.years}년 ${tenure.months}개월 ${tenure.days}일</strong></div>
+        <div class="result-item"><small>총 근속일수</small><strong>${days.toLocaleString()}일</strong></div>
+        <div class="result-item"><small>최근 3개월 임금 합계</small><strong>${money(p)}</strong></div>
+        <div class="result-item"><small>1일 평균임금(간이)</small><strong>${money(avgDaily)}</strong></div>
+      </div>`);};
  }
 };
 const info = {

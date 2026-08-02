@@ -242,3 +242,27 @@ footer small { font-size: 11px; }
 .sub-segmented button {
   font-size: 13px;
 }
+
+/* v0.5 BMI and result-detail improvements */
+.choice-row { display:flex; gap:9px; flex-wrap:wrap; }
+.choice-chip { cursor:pointer; }
+.choice-chip input { position:absolute; opacity:0; pointer-events:none; }
+.choice-chip span {
+  display:block; min-width:92px; padding:11px 18px; text-align:center;
+  border:1px solid var(--line); border-radius:999px; background:#fff; font-weight:700;
+}
+.choice-chip input:checked + span {
+  color:#fff; background:var(--accent); border-color:var(--accent);
+}
+.field-help { margin:8px 0 0; color:var(--muted); font-size:12px; }
+.result-summary { margin:8px 0 0; color:var(--muted); }
+.medical-guide {
+  margin-top:16px; padding:16px; border-radius:14px;
+  background:rgba(255,255,255,.72); border:1px solid rgba(47,91,77,.16);
+}
+.medical-guide h3 { margin:0 0 7px; font-size:15px; }
+.medical-guide p { margin:0; font-size:13px; }
+.result-disclaimer {
+  margin:13px 0 0; padding-top:13px; border-top:1px solid rgba(47,91,77,.14);
+  color:var(--muted); font-size:11px;
+}
