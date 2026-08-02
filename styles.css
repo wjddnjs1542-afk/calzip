@@ -266,3 +266,20 @@ footer small { font-size: 11px; }
   margin:13px 0 0; padding-top:13px; border-top:1px solid rgba(47,91,77,.14);
   color:var(--muted); font-size:11px;
 }
+
+/* v1.0 final salary experience */
+.advanced-options { margin-top:18px; border:1px solid var(--line); border-radius:15px; background:#faf7f1; }
+.advanced-options summary { cursor:pointer; padding:14px 16px; font-weight:800; }
+.advanced-options summary span { color:var(--muted); font-size:12px; font-weight:500; margin-left:5px; }
+.advanced-grid { padding:0 16px 16px; }
+.comparison-cards { display:grid; grid-template-columns:1fr auto 1fr; gap:12px; align-items:center; margin:18px 0; }
+.comparison-cards section { background:rgba(255,255,255,.76); padding:16px; border-radius:15px; border:1px solid rgba(47,91,77,.14); }
+.comparison-cards small { color:var(--muted); }
+.comparison-cards h3 { margin:3px 0 8px; font-size:20px; color:var(--accent); }
+.comparison-cards p { margin:3px 0; font-size:13px; }
+.comparison-cards .net-line { font-weight:800; }
+.comparison-arrow { font-size:22px; color:var(--accent); }
+@media(max-width:560px){
+  .comparison-cards { grid-template-columns:1fr; }
+  .comparison-arrow { transform:rotate(90deg); justify-self:center; }
+}

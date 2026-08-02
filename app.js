@@ -73,6 +73,75 @@ function calendarDiff(start, end) {
   return {years:Math.max(0,years), months:Math.max(0,months), days:Math.max(0,days)};
 }
 
+function earnedIncomeDeduction(annualSalary){
+  if(annualSalary<=5_000_000) return annualSalary*.70;
+  if(annualSalary<=15_000_000) return 3_500_000+(annualSalary-5_000_000)*.40;
+  if(annualSalary<=45_000_000) return 7_500_000+(annualSalary-15_000_000)*.15;
+  if(annualSalary<=100_000_000) return 12_000_000+(annualSalary-45_000_000)*.05;
+  return Math.min(20_000_000,14_750_000+(annualSalary-100_000_000)*.02);
+}
+function progressiveIncomeTax(base){
+  if(base<=0) return 0;
+  if(base<=14_000_000) return base*.06;
+  if(base<=50_000_000) return 840_000+(base-14_000_000)*.15;
+  if(base<=88_000_000) return 6_240_000+(base-50_000_000)*.24;
+  if(base<=150_000_000) return 15_360_000+(base-88_000_000)*.35;
+  if(base<=300_000_000) return 37_060_000+(base-150_000_000)*.38;
+  if(base<=500_000_000) return 94_060_000+(base-300_000_000)*.40;
+  if(base<=1_000_000_000) return 174_060_000+(base-500_000_000)*.42;
+  return 384_060_000+(base-1_000_000_000)*.45;
+}
+function estimateMonthlyTakeHome(annualSalary, options={}){
+  const monthlyGross=annualSalary/12;
+  const nonTaxMonthly=Math.min(monthlyGross, Math.max(0, Number(options.nonTaxMonthly)||0));
+  const dependents=Math.max(1, Math.floor(Number(options.dependents)||1));
+  const children=Math.max(0, Math.floor(Number(options.children)||0));
+  const withholdingRate=Number(options.withholdingRate)||100;
+
+  const taxableMonthly=Math.max(0,monthlyGross-nonTaxMonthly);
+  const pensionBase=Math.min(Math.max(taxableMonthly,410000),6590000);
+  const pension=pensionBase*.0475;
+  const health=taxableMonthly*.03595;
+  const care=health*(.009448/.0719);
+  const employment=taxableMonthly*.009;
+
+  const annualTaxablePay=taxableMonthly*12;
+  const earnedDeduction=earnedIncomeDeduction(annualTaxablePay);
+  const earnedIncome= Math.max(0, annualTaxablePay-earnedDeduction);
+  const personalDeduction=dependents*1_500_000;
+  const pensionAnnual=pension*12;
+  const standardDeduction=1_300_000;
+  const taxBase=Math.max(0,earnedIncome-personalDeduction-pensionAnnual-standardDeduction);
+  const calculatedTax=progressiveIncomeTax(taxBase);
+
+  let earnedTaxCredit;
+  if(calculatedTax<=1_300_000) earnedTaxCredit=calculatedTax*.55;
+  else earnedTaxCredit=715_000+(calculatedTax-1_300_000)*.30;
+  const creditCap=annualSalary<=33_000_000?740_000:annualSalary<=70_000_000?660_000:500_000;
+  earnedTaxCredit=Math.min(earnedTaxCredit,creditCap);
+  const childCredit=children===1?150_000:children===2?350_000:children>=3?350_000+(children-2)*300_000:0;
+  const annualIncomeTax=Math.max(0,calculatedTax-earnedTaxCredit-childCredit);
+  const incomeTax=(annualIncomeTax/12)*(withholdingRate/100);
+  const localTax=incomeTax*.10;
+  const totalDeduction=pension+health+care+employment+incomeTax+localTax;
+  const net=monthlyGross-totalDeduction;
+
+  return {monthlyGross,nonTaxMonthly,taxableMonthly,pension,health,care,employment,incomeTax,localTax,totalDeduction,net,dependents,children,withholdingRate};
+}
+function salaryDetailCards(est){
+  return `<div class="result-grid">
+    <div class="result-item"><small>월 세전</small><strong>${money(est.monthlyGross)}</strong></div>
+    <div class="result-item"><small>예상 월 실수령</small><strong>${money(est.net)}</strong></div>
+    <div class="result-item"><small>국민연금</small><strong>${money(est.pension)}</strong></div>
+    <div class="result-item"><small>건강보험</small><strong>${money(est.health)}</strong></div>
+    <div class="result-item"><small>장기요양</small><strong>${money(est.care)}</strong></div>
+    <div class="result-item"><small>고용보험</small><strong>${money(est.employment)}</strong></div>
+    <div class="result-item"><small>소득·지방소득세(추정)</small><strong>${money(est.incomeTax+est.localTax)}</strong></div>
+    <div class="result-item"><small>예상 총 공제</small><strong>${money(est.totalDeduction)}</strong></div>
+  </div>`;
+}
+
+
 function showView(id) {
   $$(".view").forEach(v=>v.classList.remove("active"));
   $("#"+id).classList.add("active");
@@ -203,26 +272,24 @@ const renderers = {
       <button class="active" data-raise-mode="newSalary">변경 연봉으로 계산</button>
       <button data-raise-mode="rate">상승률로 계산</button>
     </div>
-
-    <div class="field">
-      <label>기존 연봉</label>
-      <div class="input-wrap"><input id="old-salary" type="text" inputmode="numeric" data-money placeholder="예: 50,000,000"><em>원</em></div>
-    </div>
-
-    <div id="raise-by-new" class="field" style="margin-top:15px">
-      <label>변경 연봉</label>
-      <div class="input-wrap"><input id="new-salary" type="text" inputmode="numeric" data-money placeholder="예: 52,500,000"><em>원</em></div>
-    </div>
-
-    <div id="raise-by-rate" class="field" style="margin-top:15px" hidden>
-      <label>연봉 상승률</label>
-      <div class="input-wrap"><input id="raise-rate" type="number" inputmode="decimal" placeholder="예: 5"><em>%</em></div>
-    </div>
+    <div class="field"><label>기존 연봉</label><div class="input-wrap"><input id="old-salary" type="text" inputmode="numeric" data-money placeholder="예: 50,000,000"><em>원</em></div></div>
+    <div id="raise-by-new" class="field" style="margin-top:15px"><label>변경 연봉</label><div class="input-wrap"><input id="new-salary" type="text" inputmode="numeric" data-money placeholder="예: 52,500,000"><em>원</em></div></div>
+    <div id="raise-by-rate" class="field" style="margin-top:15px" hidden><label>연봉 상승률</label><div class="input-wrap"><input id="raise-rate" type="number" inputmode="decimal" placeholder="예: 5"><em>%</em></div></div>
   </div>
+
+  <details class="advanced-options">
+    <summary>실수령액 상세 조건 <span>선택</span></summary>
+    <div class="form-grid two advanced-grid">
+      <div class="field"><label>월 비과세액</label><div class="input-wrap"><input id="non-tax" type="text" inputmode="numeric" data-money value="200,000"><em>원</em></div></div>
+      <div class="field"><label>공제대상 가족 수</label><div class="input-wrap"><input id="dependents" type="number" inputmode="numeric" min="1" value="1"><em>명</em></div></div>
+      <div class="field"><label>8~20세 자녀 수</label><div class="input-wrap"><input id="children" type="number" inputmode="numeric" min="0" value="0"><em>명</em></div></div>
+      <div class="field"><label>원천징수 비율</label><select id="withholding-rate"><option value="80">80%</option><option value="100" selected>100%</option><option value="120">120%</option></select></div>
+    </div>
+  </details>
 
   <button class="primary-button" id="salary-calc">계산하기</button>
   <div class="result" id="salary-result"></div>
-  <p class="note">월 실수령액은 세전 연봉만 입력하면 됩니다. 연봉 상승 계산에서는 기존 연봉과 변경 연봉 또는 상승률 중 하나를 입력해 결과를 확인할 수 있습니다.</p>`),
+  <p class="note">2026년 국민연금·건강보험·장기요양보험 요율을 반영한 예상값입니다. 소득세는 입력 조건을 바탕으로 추정하므로 실제 회사 급여명세서, 상여금, 비과세 항목 및 연말정산 결과와 차이가 날 수 있습니다.</p>`),
  retirement: ()=>shell("retirement", `
   <div class="form-grid">
     ${dateParts("join-date","입사일")}
@@ -486,85 +553,89 @@ const binders = {
   let mode="takehome";
   let raiseMode="newSalary";
 
+  const getOptions=()=>({
+    nonTaxMonthly:parseMoney($("#non-tax").value),
+    dependents:Number($("#dependents").value)||1,
+    children:Number($("#children").value)||0,
+    withholdingRate:Number($("#withholding-rate").value)||100
+  });
+
   $$("[data-salary-mode]").forEach(b=>b.onclick=()=>{
     $$("[data-salary-mode]").forEach(x=>x.classList.remove("active"));
-    b.classList.add("active");
-    mode=b.dataset.salaryMode;
+    b.classList.add("active"); mode=b.dataset.salaryMode;
     $("#takehome-fields").hidden=mode!=="takehome";
     $("#raise-fields").hidden=mode==="takehome";
     $("#salary-result").classList.remove("show");
   });
-
   $$("[data-raise-mode]").forEach(b=>b.onclick=()=>{
     $$("[data-raise-mode]").forEach(x=>x.classList.remove("active"));
-    b.classList.add("active");
-    raiseMode=b.dataset.raiseMode;
+    b.classList.add("active"); raiseMode=b.dataset.raiseMode;
     $("#raise-by-new").hidden=raiseMode!=="newSalary";
     $("#raise-by-rate").hidden=raiseMode!=="rate";
     $("#salary-result").classList.remove("show");
   });
 
   $("#salary-calc").onclick=()=>{
-    if(mode==="takehome"){
-      const a=parseMoney($("#annual-salary").value);
-      if(!(a>0)) return alert("연봉을 입력해주세요.");
-      const monthly=a/12;
-      const pensionBase=Math.min(monthly,6590000), pension=pensionBase*.0475;
-      const health=monthly*.03595, care=monthly*.004724, employment=monthly*.009;
-      const social=pension+health+care+employment;
-      const taxable=Math.max(0,monthly-social);
-      const incomeTax=Math.max(0,(taxable*0.035)-70000);
-      const localTax=incomeTax*.1;
-      const deduction=social+incomeTax+localTax, net=monthly-deduction;
+    const options=getOptions();
 
+    if(mode==="takehome"){
+      const annual=parseMoney($("#annual-salary").value);
+      if(!(annual>0)) return alert("세전 연봉을 입력해주세요.");
+      const est=estimateMonthlyTakeHome(annual,options);
       showResult("salary-result",`
-        <span class="result-label">2026년 기준 예상 월 실수령액</span>
-        <strong class="big">${money(net)}</strong>
-        <div class="result-grid">
-          <div class="result-item"><small>월 세전</small><strong>${money(monthly)}</strong></div>
-          <div class="result-item"><small>국민연금(근로자분)</small><strong>${money(pension)}</strong></div>
-          <div class="result-item"><small>건강·장기요양</small><strong>${money(health+care)}</strong></div>
-          <div class="result-item"><small>고용보험</small><strong>${money(employment)}</strong></div>
-          <div class="result-item"><small>소득·지방소득세(간이)</small><strong>${money(incomeTax+localTax)}</strong></div>
-          <div class="result-item"><small>예상 총 공제</small><strong>${money(deduction)}</strong></div>
-        </div>`);
+        <span class="result-label">예상 월 실수령액</span>
+        <strong class="big">${money(est.net)}</strong>
+        ${salaryDetailCards(est)}
+        <p class="result-disclaimer">공제대상 가족 ${est.dependents}명, 8~20세 자녀 ${est.children}명, 월 비과세 ${money(est.nonTaxMonthly)}, 원천징수 ${est.withholdingRate}% 조건입니다.</p>`);
       return;
     }
 
     const oldSalary=parseMoney($("#old-salary").value);
     if(!(oldSalary>0)) return alert("기존 연봉을 입력해주세요.");
 
+    let newSalary, rate;
     if(raiseMode==="newSalary"){
-      const newSalary=parseMoney($("#new-salary").value);
+      newSalary=parseMoney($("#new-salary").value);
       if(!(newSalary>0)) return alert("변경 연봉을 입력해주세요.");
-      const diff=newSalary-oldSalary;
-      const rate=diff/oldSalary*100;
-
-      showResult("salary-result",`
-        <span class="result-label">연봉 변화율</span>
-        <strong class="big">${rate>=0?"+":""}${rate.toFixed(2)}%</strong>
-        <div class="result-grid">
-          <div class="result-item"><small>변경 연봉</small><strong>${money(newSalary)}</strong></div>
-          <div class="result-item"><small>연간 증감액</small><strong>${diff>=0?"+":""}${money(diff)}</strong></div>
-          <div class="result-item"><small>월 세전 증감</small><strong>${diff>=0?"+":""}${money(diff/12)}</strong></div>
-          <div class="result-item"><small>변경 월 세전</small><strong>${money(newSalary/12)}</strong></div>
-        </div>`);
-    } else {
-      const rate=parseFloat($("#raise-rate").value);
+      rate=(newSalary-oldSalary)/oldSalary*100;
+    }else{
+      rate=parseFloat($("#raise-rate").value);
       if(Number.isNaN(rate)) return alert("연봉 상승률을 입력해주세요.");
-      const newSalary=oldSalary*(1+rate/100);
-      const diff=newSalary-oldSalary;
-
-      showResult("salary-result",`
-        <span class="result-label">${rate>=0?rate.toFixed(2)+"% 인상":"감소"} 적용 변경 연봉</span>
-        <strong class="big">${money(newSalary)}</strong>
-        <div class="result-grid">
-          <div class="result-item"><small>기존 연봉</small><strong>${money(oldSalary)}</strong></div>
-          <div class="result-item"><small>연간 증감액</small><strong>${diff>=0?"+":""}${money(diff)}</strong></div>
-          <div class="result-item"><small>월 세전 증감</small><strong>${diff>=0?"+":""}${money(diff/12)}</strong></div>
-          <div class="result-item"><small>변경 월 세전</small><strong>${money(newSalary/12)}</strong></div>
-        </div>`);
+      newSalary=oldSalary*(1+rate/100);
     }
+
+    const diff=newSalary-oldSalary;
+    const before=estimateMonthlyTakeHome(oldSalary,options);
+    const after=estimateMonthlyTakeHome(newSalary,options);
+    const netDiff=after.net-before.net;
+
+    showResult("salary-result",`
+      <span class="result-label">${raiseMode==="newSalary"?"변경 연봉 기준 상승률":"상승률 적용 변경 연봉"}</span>
+      <strong class="big">${raiseMode==="newSalary"?(rate>=0?"+":"")+rate.toFixed(2)+"%":money(newSalary)}</strong>
+      <div class="comparison-cards">
+        <section>
+          <small>기존</small>
+          <h3>${money(oldSalary)}</h3>
+          <p>월 세전 ${money(before.monthlyGross)}</p>
+          <p class="net-line">예상 실수령 ${money(before.net)}</p>
+        </section>
+        <span class="comparison-arrow">→</span>
+        <section>
+          <small>변경</small>
+          <h3>${money(newSalary)}</h3>
+          <p>월 세전 ${money(after.monthlyGross)}</p>
+          <p class="net-line">예상 실수령 ${money(after.net)}</p>
+        </section>
+      </div>
+      <div class="result-grid">
+        <div class="result-item"><small>연봉 증감률</small><strong>${rate>=0?"+":""}${rate.toFixed(2)}%</strong></div>
+        <div class="result-item"><small>연간 세전 증감</small><strong>${diff>=0?"+":""}${money(diff)}</strong></div>
+        <div class="result-item"><small>월 세전 증감</small><strong>${diff>=0?"+":""}${money(diff/12)}</strong></div>
+        <div class="result-item"><small>월 실수령 증감 예상</small><strong>${netDiff>=0?"+":""}${money(netDiff)}</strong></div>
+        <div class="result-item"><small>기존 예상 총 공제</small><strong>${money(before.totalDeduction)}</strong></div>
+        <div class="result-item"><small>변경 예상 총 공제</small><strong>${money(after.totalDeduction)}</strong></div>
+      </div>
+      <p class="result-disclaimer">기존 연봉과 변경 연봉에 동일한 비과세액·가족 수·원천징수 조건을 적용한 비교입니다.</p>`);
   };
  },
  retirement() {
