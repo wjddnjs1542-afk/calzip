@@ -1,6 +1,6 @@
 
 const calculators = {
-  area: {icon:"🏠", title:"평수 계산기", desc:"제곱미터(㎡)와 평을 양방향으로 변환합니다."},
+  area: {icon:"🏠", title:"평형 계산기", desc:"전용면적과 예전식 공급면적 기준 평형을 함께 확인합니다."},
   age: {icon:"🎂", title:"나이 계산기", desc:"생년월일을 기준으로 만 나이와 한국식 나이를 계산합니다."},
   date: {icon:"📅", title:"날짜 계산기", desc:"D-Day와 특정 날짜에서 며칠 전·후를 계산합니다."},
   exchange: {icon:"💱", title:"환율 계산기", desc:"최신 기준 환율로 주요 통화를 변환합니다."},
@@ -49,10 +49,31 @@ function openCalc(id) {
 }
 const renderers = {
  area: ()=>shell("area", `
-  <div class="segmented"><button class="active" data-mode="sqm">㎡ → 평</button><button data-mode="pyeong">평 → ㎡</button></div>
-  <div class="field"><label id="area-label">면적(㎡)</label><div class="input-wrap"><input id="area-value" type="number" inputmode="decimal" placeholder="예: 84"><em id="area-unit">㎡</em></div></div>
-  <button class="primary-button" id="area-calc">계산하기</button><div class="result" id="area-result"></div>
-  <p class="note">1평 = 약 3.305785㎡ 기준입니다. 아파트의 전용면적과 공급면적은 서로 다를 수 있습니다.</p>`),
+  <div class="segmented"><button class="active" data-mode="sqm">전용면적 ㎡ 입력</button><button data-mode="pyeong">전용평수 입력</button></div>
+  <div class="quick-picks" aria-label="자주 찾는 전용면적">
+    <button type="button" data-area-pick="59">59㎡</button>
+    <button type="button" data-area-pick="74">74㎡</button>
+    <button type="button" data-area-pick="84">84㎡</button>
+    <button type="button" data-area-pick="101">101㎡</button>
+  </div>
+  <div class="field"><label id="area-label">전용면적</label><div class="input-wrap"><input id="area-value" type="number" inputmode="decimal" placeholder="예: 84"><em id="area-unit">㎡</em></div></div>
+  <div class="field" style="margin-top:15px">
+    <label>공급면적 계산 방식</label>
+    <select id="exclusive-rate">
+      <option value="range">일반적인 범위로 보기</option>
+      <option value="80">전용률 80%</option>
+      <option value="78">전용률 78%</option>
+      <option value="75">전용률 75%</option>
+      <option value="custom">전용률 직접 입력</option>
+    </select>
+  </div>
+  <div class="field" id="custom-rate-field" style="margin-top:15px" hidden>
+    <label>전용률 직접 입력</label>
+    <div class="input-wrap"><input id="custom-rate" type="number" inputmode="decimal" placeholder="예: 78"><em>%</em></div>
+  </div>
+  <button class="primary-button" id="area-calc">평형 계산하기</button>
+  <div class="result" id="area-result"></div>
+  <p class="note">전용면적의 평수는 정확한 단위 변환값입니다. 공급면적 기준 평형은 주거공용면적을 포함하므로 단지와 주택형별 전용률에 따라 달라집니다.</p>`),
  age: ()=>shell("age", `
   <div class="field"><label>생년월일</label><input id="birth" type="date"></div>
   <button class="primary-button" id="age-calc">나이 계산하기</button><div class="result" id="age-result"></div>
@@ -121,8 +142,78 @@ const renderers = {
 const binders = {
  area() {
   let mode="sqm";
-  $$("[data-mode]").forEach(b=>b.onclick=()=>{ $$("[data-mode]").forEach(x=>x.classList.remove("active")); b.classList.add("active"); mode=b.dataset.mode; $("#area-label").textContent=mode==="sqm"?"면적(㎡)":"면적(평)"; $("#area-unit").textContent=mode==="sqm"?"㎡":"평"; $("#area-result").classList.remove("show"); });
-  $("#area-calc").onclick=()=>{ const v=parseFloat($("#area-value").value); if(!(v>=0)) return alert("면적을 입력해주세요."); const r=mode==="sqm"?v/3.305785:v*3.305785; showResult("area-result", `<span class="result-label">${number(v)}${mode==="sqm"?"㎡":"평"}은</span><strong class="big">${number(r)}${mode==="sqm"?"평":"㎡"}</strong>`); };
+  const input=$("#area-value");
+  const rateSelect=$("#exclusive-rate");
+  const customField=$("#custom-rate-field");
+
+  function updateMode(nextMode){
+    mode=nextMode;
+    $$("[data-mode]").forEach(x=>x.classList.toggle("active", x.dataset.mode===mode));
+    $("#area-label").textContent=mode==="sqm"?"전용면적":"전용평수";
+    $("#area-unit").textContent=mode==="sqm"?"㎡":"평";
+    input.placeholder=mode==="sqm"?"예: 84":"예: 25.4";
+    $("#area-result").classList.remove("show");
+  }
+
+  $$("[data-mode]").forEach(b=>b.onclick=()=>updateMode(b.dataset.mode));
+  $$("[data-area-pick]").forEach(b=>b.onclick=()=>{
+    updateMode("sqm");
+    input.value=b.dataset.areaPick;
+    $("#area-calc").click();
+  });
+
+  rateSelect.onchange=()=>{
+    customField.hidden=rateSelect.value!=="custom";
+    $("#area-result").classList.remove("show");
+  };
+
+  $("#area-calc").onclick=()=>{
+    const raw=parseFloat(input.value);
+    if(!(raw>0)) return alert("전용면적 또는 전용평수를 입력해주세요.");
+
+    const exclusiveSqm=mode==="sqm"?raw:raw*3.305785;
+    const exclusivePyeong=exclusiveSqm/3.305785;
+
+    let supplyHtml="";
+    if(rateSelect.value==="range"){
+      const lowRate=0.80, highRate=0.75;
+      const supplyLowSqm=exclusiveSqm/lowRate;
+      const supplyHighSqm=exclusiveSqm/highRate;
+      const supplyLowP=supplyLowSqm/3.305785;
+      const supplyHighP=supplyHighSqm/3.305785;
+      supplyHtml=`
+        <div class="supply-highlight">
+          <small>예전식 공급면적 기준 예상 평형</small>
+          <strong>약 ${number(supplyLowP)}~${number(supplyHighP)}평형</strong>
+          <span>예상 공급면적 ${number(supplyLowSqm)}~${number(supplyHighSqm)}㎡</span>
+        </div>`;
+    }else{
+      let rate=rateSelect.value==="custom"?parseFloat($("#custom-rate").value):parseFloat(rateSelect.value);
+      if(!(rate>0&&rate<100)) return alert("전용률을 1~99 사이로 입력해주세요.");
+      const supplySqm=exclusiveSqm/(rate/100);
+      const supplyP=supplySqm/3.305785;
+      supplyHtml=`
+        <div class="supply-highlight">
+          <small>전용률 ${number(rate)}% 적용 공급면적 기준</small>
+          <strong>약 ${number(supplyP)}평형</strong>
+          <span>예상 공급면적 ${number(supplySqm)}㎡</span>
+        </div>`;
+    }
+
+    showResult("area-result", `
+      <span class="result-label">전용면적 기준</span>
+      <strong class="big">${number(exclusivePyeong)}평</strong>
+      <div class="result-grid">
+        <div class="result-item"><small>전용면적</small><strong>${number(exclusiveSqm)}㎡</strong></div>
+        <div class="result-item"><small>정확한 전용평수</small><strong>${number(exclusivePyeong)}평</strong></div>
+      </div>
+      ${supplyHtml}
+      <div class="area-explain">
+        <strong>왜 두 평수가 다른가요?</strong>
+        <p>전용평수는 실제 세대 내부 면적만 환산한 값입니다. 흔히 “34평 아파트”라고 부르는 평형은 복도·계단·엘리베이터홀 등 주거공용면적이 포함된 공급면적 기준입니다.</p>
+      </div>
+    `);
+  };
  },
  age() {
   $("#age-calc").onclick=()=>{ const s=$("#birth").value; if(!s) return alert("생년월일을 선택해주세요."); const b=new Date(s+"T00:00:00"), t=todayLocal(); if(b>t) return alert("미래 날짜는 선택할 수 없습니다."); let age=t.getFullYear()-b.getFullYear(); const before=(t.getMonth()<b.getMonth())||(t.getMonth()===b.getMonth()&&t.getDate()<b.getDate()); if(before) age--; const korean=t.getFullYear()-b.getFullYear()+1; let next=new Date(t.getFullYear(), b.getMonth(), b.getDate()); if(next<t) next=new Date(t.getFullYear()+1,b.getMonth(),b.getDate()); const days=Math.ceil((next-t)/86400000); showResult("age-result", `<span class="result-label">현재 나이</span><strong class="big">만 ${age}세</strong><div class="result-grid"><div class="result-item"><small>한국식 나이</small><strong>${korean}세</strong></div><div class="result-item"><small>다음 생일까지</small><strong>${days===0?"오늘":days+"일"}</strong></div></div>`); };
