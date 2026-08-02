@@ -97,11 +97,15 @@ function estimateMonthlyTakeHome(annualSalary, options={}){
   const dependents=Math.max(1, Math.floor(Number(options.dependents)||1));
   const children=Math.max(0, Math.floor(Number(options.children)||0));
   const withholdingRate=Number(options.withholdingRate)||100;
+  const otherDeduction=Math.max(0,Number(options.otherDeduction)||0);
 
   const taxableMonthly=Math.max(0,monthlyGross-nonTaxMonthly);
-  const pensionBase=Math.min(Math.max(taxableMonthly,410000),6590000);
+  const enteredPensionBase=Math.max(0,Number(options.pensionBase)||0);
+  const enteredHealthBase=Math.max(0,Number(options.healthBase)||0);
+  const pensionBase=Math.min(Math.max(enteredPensionBase||taxableMonthly,410000),6590000);
+  const healthBase=enteredHealthBase||taxableMonthly;
   const pension=pensionBase*.0475;
-  const health=taxableMonthly*.03595;
+  const health=healthBase*.03595;
   const care=health*(.009448/.0719);
   const employment=taxableMonthly*.009;
 
@@ -123,10 +127,10 @@ function estimateMonthlyTakeHome(annualSalary, options={}){
   const annualIncomeTax=Math.max(0,calculatedTax-earnedTaxCredit-childCredit);
   const incomeTax=(annualIncomeTax/12)*(withholdingRate/100);
   const localTax=incomeTax*.10;
-  const totalDeduction=pension+health+care+employment+incomeTax+localTax;
+  const totalDeduction=pension+health+care+employment+incomeTax+localTax+otherDeduction;
   const net=monthlyGross-totalDeduction;
 
-  return {monthlyGross,nonTaxMonthly,taxableMonthly,pension,health,care,employment,incomeTax,localTax,totalDeduction,net,dependents,children,withholdingRate};
+  return {monthlyGross,nonTaxMonthly,taxableMonthly,pensionBase,healthBase,pension,health,care,employment,incomeTax,localTax,otherDeduction,totalDeduction,net,dependents,children,withholdingRate};
 }
 function salaryDetailCards(est){
   return `<div class="result-grid">
@@ -137,6 +141,7 @@ function salaryDetailCards(est){
     <div class="result-item"><small>장기요양</small><strong>${money(est.care)}</strong></div>
     <div class="result-item"><small>고용보험</small><strong>${money(est.employment)}</strong></div>
     <div class="result-item"><small>소득·지방소득세(추정)</small><strong>${money(est.incomeTax+est.localTax)}</strong></div>
+    ${est.otherDeduction>0?`<div class="result-item"><small>기타 공제</small><strong>${money(est.otherDeduction)}</strong></div>`:""}
     <div class="result-item"><small>예상 총 공제</small><strong>${money(est.totalDeduction)}</strong></div>
   </div>`;
 }
@@ -264,7 +269,7 @@ const renderers = {
   <div class="segmented"><button class="active" data-salary-mode="takehome">월 실수령액</button><button data-salary-mode="raise">연봉 상승 계산</button></div>
 
   <div id="takehome-fields">
-    <div class="field"><label>세전 연봉</label><div class="input-wrap"><input id="annual-salary" type="text" inputmode="numeric" data-money placeholder="예: 50,000,000"><em>원</em></div></div>
+    <div class="field"><label>세전 연봉</label><div class="input-wrap"><input id="annual-salary" type="text" inputmode="numeric" data-money placeholder="예: 74,000,000"><em>원</em></div></div>
   </div>
 
   <div id="raise-fields" hidden>
@@ -272,24 +277,36 @@ const renderers = {
       <button class="active" data-raise-mode="newSalary">변경 연봉으로 계산</button>
       <button data-raise-mode="rate">상승률로 계산</button>
     </div>
-    <div class="field"><label>기존 연봉</label><div class="input-wrap"><input id="old-salary" type="text" inputmode="numeric" data-money placeholder="예: 50,000,000"><em>원</em></div></div>
-    <div id="raise-by-new" class="field" style="margin-top:15px"><label>변경 연봉</label><div class="input-wrap"><input id="new-salary" type="text" inputmode="numeric" data-money placeholder="예: 52,500,000"><em>원</em></div></div>
-    <div id="raise-by-rate" class="field" style="margin-top:15px" hidden><label>연봉 상승률</label><div class="input-wrap"><input id="raise-rate" type="number" inputmode="decimal" placeholder="예: 5"><em>%</em></div></div>
+    <div class="field"><label>기존 연봉</label><div class="input-wrap"><input id="old-salary" type="text" inputmode="numeric" data-money placeholder="예: 74,000,000"><em>원</em></div></div>
+    <div id="raise-by-new" class="field" style="margin-top:15px"><label>변경 연봉</label><div class="input-wrap"><input id="new-salary" type="text" inputmode="numeric" data-money placeholder="예: 76,960,000"><em>원</em></div></div>
+    <div id="raise-by-rate" class="field" style="margin-top:15px" hidden>
+      <label>연봉 상승률</label>
+      <div class="input-wrap"><input id="raise-rate" type="number" inputmode="decimal" placeholder="예: 4"><em>%</em></div>
+      <div class="quick-picks raise-picks" aria-label="빠른 상승률 선택">
+        <button type="button" data-raise-pick="1">+1%</button><button type="button" data-raise-pick="2">+2%</button>
+        <button type="button" data-raise-pick="3">+3%</button><button type="button" data-raise-pick="4">+4%</button>
+        <button type="button" data-raise-pick="5">+5%</button><button type="button" data-raise-pick="10">+10%</button>
+      </div>
+    </div>
   </div>
 
   <details class="advanced-options">
-    <summary>실수령액 상세 조건 <span>선택</span></summary>
+    <summary>실수령액 정확도 높이기 <span>선택</span></summary>
+    <p class="advanced-intro">급여명세서를 알고 있다면 아래 값을 입력하세요. 모르면 기본값으로 계산됩니다.</p>
     <div class="form-grid two advanced-grid">
       <div class="field"><label>월 비과세액</label><div class="input-wrap"><input id="non-tax" type="text" inputmode="numeric" data-money value="200,000"><em>원</em></div></div>
-      <div class="field"><label>공제대상 가족 수</label><div class="input-wrap"><input id="dependents" type="number" inputmode="numeric" min="1" value="1"><em>명</em></div></div>
+      <div class="field"><label>공제대상 가족 수</label><div class="input-wrap"><input id="dependents" type="number" inputmode="numeric" min="1" value="1"><em>명</em></div><p class="field-help">본인을 포함합니다.</p></div>
       <div class="field"><label>8~20세 자녀 수</label><div class="input-wrap"><input id="children" type="number" inputmode="numeric" min="0" value="0"><em>명</em></div></div>
       <div class="field"><label>원천징수 비율</label><select id="withholding-rate"><option value="80">80%</option><option value="100" selected>100%</option><option value="120">120%</option></select></div>
+      <div class="field"><label>국민연금 기준소득월액</label><div class="input-wrap"><input id="pension-base" type="text" inputmode="numeric" data-money placeholder="모르면 비워두기"><em>원</em></div></div>
+      <div class="field"><label>건강보험 보수월액</label><div class="input-wrap"><input id="health-base" type="text" inputmode="numeric" data-money placeholder="모르면 비워두기"><em>원</em></div></div>
+      <div class="field"><label>노조비 등 기타 월 공제</label><div class="input-wrap"><input id="other-deduction" type="text" inputmode="numeric" data-money placeholder="예: 38,000"><em>원</em></div></div>
     </div>
   </details>
 
   <button class="primary-button" id="salary-calc">계산하기</button>
   <div class="result" id="salary-result"></div>
-  <p class="note">2026년 국민연금·건강보험·장기요양보험 요율을 반영한 예상값입니다. 소득세는 입력 조건을 바탕으로 추정하므로 실제 회사 급여명세서, 상여금, 비과세 항목 및 연말정산 결과와 차이가 날 수 있습니다.</p>`),
+  <p class="note">2026년 사회보험 요율과 근로소득세 구조를 반영한 예상값입니다. 실제 급여는 회사의 보수월액 신고, 상여·연장근로수당, 식대, 가족공제, 노조비 등에 따라 달라질 수 있습니다.</p>`),
  retirement: ()=>shell("retirement", `
   <div class="form-grid">
     ${dateParts("join-date","입사일")}
@@ -557,7 +574,10 @@ const binders = {
     nonTaxMonthly:parseMoney($("#non-tax").value),
     dependents:Number($("#dependents").value)||1,
     children:Number($("#children").value)||0,
-    withholdingRate:Number($("#withholding-rate").value)||100
+    withholdingRate:Number($("#withholding-rate").value)||100,
+    pensionBase:parseMoney($("#pension-base").value),
+    healthBase:parseMoney($("#health-base").value),
+    otherDeduction:parseMoney($("#other-deduction").value)
   });
 
   $$("[data-salary-mode]").forEach(b=>b.onclick=()=>{
@@ -574,6 +594,10 @@ const binders = {
     $("#raise-by-rate").hidden=raiseMode!=="rate";
     $("#salary-result").classList.remove("show");
   });
+  $$("[data-raise-pick]").forEach(b=>b.onclick=()=>{
+    $("#raise-rate").value=b.dataset.raisePick;
+    if(parseMoney($("#old-salary").value)>0) $("#salary-calc").click();
+  });
 
   $("#salary-calc").onclick=()=>{
     const options=getOptions();
@@ -586,7 +610,7 @@ const binders = {
         <span class="result-label">예상 월 실수령액</span>
         <strong class="big">${money(est.net)}</strong>
         ${salaryDetailCards(est)}
-        <p class="result-disclaimer">공제대상 가족 ${est.dependents}명, 8~20세 자녀 ${est.children}명, 월 비과세 ${money(est.nonTaxMonthly)}, 원천징수 ${est.withholdingRate}% 조건입니다.</p>`);
+        <p class="result-disclaimer">공제대상 가족 ${est.dependents}명, 8~20세 자녀 ${est.children}명, 월 비과세 ${money(est.nonTaxMonthly)}, 원천징수 ${est.withholdingRate}% 조건입니다.${est.pensionBase?` 국민연금 기준소득월액 ${money(est.pensionBase)}`:""}${est.healthBase?`, 건강보험 보수월액 ${money(est.healthBase)}`:""}</p>`);
       return;
     }
 
@@ -632,6 +656,8 @@ const binders = {
         <div class="result-item"><small>연간 세전 증감</small><strong>${diff>=0?"+":""}${money(diff)}</strong></div>
         <div class="result-item"><small>월 세전 증감</small><strong>${diff>=0?"+":""}${money(diff/12)}</strong></div>
         <div class="result-item"><small>월 실수령 증감 예상</small><strong>${netDiff>=0?"+":""}${money(netDiff)}</strong></div>
+        <div class="result-item"><small>연간 실수령 증감 예상</small><strong>${netDiff>=0?"+":""}${money(netDiff*12)}</strong></div>
+        <div class="result-item"><small>실수령 증가율</small><strong>${before.net>0?(netDiff/before.net*100).toFixed(2):"0.00"}%</strong></div>
         <div class="result-item"><small>기존 예상 총 공제</small><strong>${money(before.totalDeduction)}</strong></div>
         <div class="result-item"><small>변경 예상 총 공제</small><strong>${money(after.totalDeduction)}</strong></div>
       </div>

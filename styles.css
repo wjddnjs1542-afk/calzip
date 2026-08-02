@@ -283,3 +283,8 @@ footer small { font-size: 11px; }
   .comparison-cards { grid-template-columns:1fr; }
   .comparison-arrow { transform:rotate(90deg); justify-self:center; }
 }
+
+/* v1.1 salary final refinements */
+.advanced-intro { margin:0; padding:0 16px 12px; color:var(--muted); font-size:12px; }
+.raise-picks { margin:10px 0 0; }
+.raise-picks button { padding:7px 12px; font-size:12px; }
